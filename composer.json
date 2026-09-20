@@ -1,0 +1,32 @@
+{
+    "name": "sunlicense/sunlicense",
+    "description": "Official SunLicense client for PHP — licence key management and validation for indie software developers.",
+    "type": "library",
+    "keywords": ["license", "licence", "licensing", "license-key", "activation", "drm", "anti-piracy", "sunlicense"],
+    "homepage": "https://sunlicense.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Hapangama",
+            "email": "kasun@hapangama.com",
+            "homepage": "https://sunlicense.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/sunlicense-com/sunlicense-php/issues",
+        "docs": "https://docs.sunlicense.hapangama.com",
+        "source": "https://github.com/sunlicense-com/sunlicense-php"
+    },
+    "require": {
+        "php": ">=8.0"
+    },
+    "suggest": {
+        "ext-curl": "Preferred HTTP transport; the client falls back to stream wrappers without it."
+    },
+    "autoload": {
+        "psr-4": {
+            "SunLicense\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}
