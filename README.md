@@ -77,6 +77,20 @@ Also available for **Java**, **.NET**, **JavaScript**, **Python** and **Lua**.
 - Documentation — https://docs.sunlicense.hapangama.com
 - Issues — https://github.com/sunlicense-com/sunlicense-php/issues
 
+## Changelog
+
+- **0.0.2**: validates against `/api/v2/license/validate` (`{"license": key, ...context}`), like
+  every other SunLicense client. **0.0.1 called `/api/v1/validate`, which answers HTTP 200 for every
+  key, so `isValid()` was true for unknown, revoked and expired keys.** Upgrade with
+  `composer update sunlicense/sunlicense`.
+- **0.0.1**: first release.
+
+## Tests
+
+```bash
+php tests/run.php
+```
+
 ## Licence
 
 MIT © Hapangama
