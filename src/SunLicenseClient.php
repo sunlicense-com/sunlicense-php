@@ -17,7 +17,7 @@ namespace SunLicense;
 final class SunLicenseClient
 {
     /** The version of this client. */
-    public const VERSION = '0.0.1';
+    public const VERSION = '0.0.2';
 
     private string $baseUrl;
     private ?string $token;
@@ -57,11 +57,13 @@ final class SunLicenseClient
         }
 
         $payload = json_encode(
-            ['licenseKey' => $licenseKey] + $context,
+            ['license' => $licenseKey] + $context,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
         );
 
-        $url = $this->baseUrl . '/api/v1/validate';
+        // The endpoint every SunLicense SDK uses: 2xx means valid, 4xx means rejected (0.0.1 called
+        // /api/v1/validate, which answers 200 for every key, so every key passed).
+        $url = $this->baseUrl . '/api/v2/license/validate';
 
         [$status, $body] = \function_exists('curl_init')
             ? $this->sendWithCurl($url, $payload)
