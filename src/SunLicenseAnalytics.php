@@ -161,7 +161,8 @@ final class SunLicenseAnalytics
     {
         try {
             $id = self::chartId($name);
-            if ($id !== null && $uses >= 1 && !$this->optedOut()) {
+            if ($id !== null && $uses >= 1 && !$this->closed && !$this->optedOut()
+                && (isset($this->features[$id]) || count($this->features) < self::MAX_FEATURES)) { // at most 50 different features
                 $this->features[$id] = min(self::MAX_NUMBER, ($this->features[$id] ?? 0) + $uses);
             }
         } catch (\Throwable $e) {
@@ -234,7 +235,7 @@ final class SunLicenseAnalytics
                 return 0;
             }
             if ($this->optedOut()) {
-                $this->features = [];
+                $this->dropFeatures();
                 return 0;
             }
             $due = false;
@@ -262,7 +263,11 @@ final class SunLicenseAnalytics
     public function sendNow(): int
     {
         try {
-            if ($this->closed || $this->optedOut()) {
+            if ($this->closed) {
+                return 0;
+            }
+            if ($this->optedOut()) {
+                $this->dropFeatures();
                 return 0;
             }
             $state = $this->withState(fn (array $s): array => $this->mergeFeatures($s));
@@ -271,6 +276,10 @@ final class SunLicenseAnalytics
                 return 0;
             }
             $body = self::json($report);
+            if (strlen($body) > self::MAX_BODY && isset($report['charts'])) { // charts go first, then features
+                unset($report['charts']);
+                $body = self::json($report);
+            }
             if (strlen($body) > self::MAX_BODY) {
                 $report = array_intersect_key($report, array_flip(self::CORE_KEYS));
                 $sending = [];
@@ -374,9 +383,14 @@ final class SunLicenseAnalytics
                 $out = [];
                 foreach (is_array($value) ? $value : [] as $k => $list) {
                     $key = self::clean($k, 64);
-                    $nums = is_array($list) ? array_slice(array_values($list), 0, self::MAX_BAR) : [];
-                    $fine = $nums !== [] && count(array_filter($nums, fn ($n) => self::number($n) === null)) === 0;
-                    if ($key !== null && $fine && count($out) < self::MAX_VALUES) {
+                    $nums = [];
+                    foreach (is_array($list) ? array_values($list) : [] as $n) {
+                        if (count($nums) >= self::MAX_BAR || self::number($n) === null) {
+                            break; // up to 20 numbers, until the first that isn't one
+                        }
+                        $nums[] = $n;
+                    }
+                    if ($key !== null && $nums !== [] && count($out) < self::MAX_VALUES) {
                         $out[$key] = $nums;
                     }
                 }
@@ -573,9 +587,22 @@ final class SunLicenseAnalytics
     }
 
     /** Merges this process's feature counts into the state (and forgets them here). */
+    /** Nothing is counted while analytics is off: forgets this process's counts and the saved ones. */
+    private function dropFeatures(): void
+    {
+        $this->features = [];
+        $this->withState(function (array $state): array {
+            unset($state['features']);
+            return $state;
+        });
+    }
+
     private function mergeFeatures(array $state): array
     {
         foreach ($this->features as $name => $uses) {
+            if (!isset($state['features'][$name]) && count($state['features'] ?? []) >= self::MAX_FEATURES) {
+                continue; // at most 50 different features
+            }
             $state['features'][$name] = min(self::MAX_NUMBER, ($state['features'][$name] ?? 0) + $uses);
         }
         $this->features = [];

@@ -223,15 +223,26 @@ $test('features: counted across processes, kept until a report is stored', funct
     $check(!isset($t->seen[3]['body']['features']), 'nothing counted while off');
 });
 
-$test('features: at most 50 per report, the rest wait', function () use ($make, $tmp, $recorder, $check) {
+$test('features: at most 50 different ones, like the Java SDK; switching off drops the counts', function () use ($make, $tmp, $recorder, $check) {
     $t = $recorder();
     $a = $make(['productAnalyticsId' => 'pa_x', '_transport' => $t]);
     for ($i = 0; $i < 60; $i++) {
         $a->feature("f$i");
     }
+    $a->feature('f0');
     $a->sendNow();
     $a->sendNow();
-    $check(count($t->seen[0]['body']['features']) === 50 && count($t->seen[1]['body']['features']) === 10, 'split');
+    $check(count($t->seen[0]['body']['features']) === 50 && $t->seen[0]['body']['features']['f0'] === 2, '50, f0 twice');
+    $check(!isset($t->seen[1]['body']['features']), 'the other 10 were never counted');
+    $on = true;
+    $dir = $tmp();
+    $b = $make(['productAnalyticsId' => 'pa_x', 'dataDirectory' => $dir, 'enabled' => function () use (&$on) { return $on; }, '_transport' => $t]);
+    $b->feature('auto-sell')->tick();
+    $on = false;
+    $check($b->sendNow() === 0, 'off');
+    $on = true;
+    $b->sendNow();
+    $check(!isset($t->seen[2]['body']['features']), 'saved counts dropped while off');
 });
 
 $test('custom charts: every type, the wire shape of spec 185 section 4.6', function () use ($make, $recorder, $check) {
@@ -260,7 +271,7 @@ $test('custom charts: every type, the wire shape of spec 185 section 4.6', funct
         ['id' => 'players', 'type' => 'single_line', 'data' => ['value' => 42]],
         ['id' => 'worlds', 'type' => 'multi_line', 'data' => ['values' => ['overworld' => 30, 'nether' => -2]]],
         ['id' => 'commands', 'type' => 'simple_bar', 'data' => ['values' => ['sell' => 12]]],
-        ['id' => 'tiers', 'type' => 'advanced_bar', 'data' => ['values' => ['gold' => [1, 2, 3]]]],
+        ['id' => 'tiers', 'type' => 'advanced_bar', 'data' => ['values' => ['gold' => [1, 2, 3], 'bad' => [1]]]],
         ['id' => 'numeric', 'type' => 'advanced_pie', 'data' => ['values' => ['0' => 2, '1' => 1]]],
     ];
     $check($t->seen[0]['body']['charts'] == $expected, json_encode($t->seen[0]['body']['charts']));
@@ -289,9 +300,10 @@ $test('custom charts: same id replaces, at most 30; a report over 16 KB keeps th
     }
     $big->feature('kept');
     $check($big->sendNow() === 204, '204');
-    $check(!isset($t->seen[1]['body']['charts']) && !isset($t->seen[1]['body']['features']) && isset($t->seen[1]['body']['metrics']), 'stripped');
+    $check(!isset($t->seen[1]['body']['charts']) && isset($t->seen[1]['body']['metrics']), 'charts dropped first');
+    $check(($t->seen[1]['body']['features'] ?? null) == ['kept' => 1], 'features kept in the report');
     $big->sendNow();
-    $check(!isset($t->seen[2]['body']['charts']) && ($t->seen[2]['body']['metrics'] ?? null) !== null, 'still stripped');
+    $check(!isset($t->seen[2]['body']['charts']) && !isset($t->seen[2]['body']['features']), 'sent features are gone');
 });
 
 $test('a real HTTP request (cURL or streams) and the shutdown hook', function () use ($tmp, $check) {
