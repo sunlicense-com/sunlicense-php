@@ -17,7 +17,7 @@ namespace SunLicense;
 final class SunLicenseClient
 {
     /** The version of this client. */
-    public const VERSION = '0.0.2';
+    public const VERSION = '0.1.0';
 
     private string $baseUrl;
     private ?string $token;
@@ -70,6 +70,18 @@ final class SunLicenseClient
             : $this->sendWithStreams($url, $payload);
 
         return new ValidationResult($status >= 200 && $status < 300, $status, $body);
+    }
+
+    /**
+     * Starts built-in product analytics for a licensed product, with this client's base URL and API key
+     * (see SunLicenseAnalytics). Never throws.
+     *
+     * @param array<string, mixed> $options licenseKey and fingerprint (the values you validate with), plus any
+     *                                      SunLicenseAnalytics option (productVersion, enabled, dataDirectory, …)
+     */
+    public function analytics(array $options = []): SunLicenseAnalytics
+    {
+        return SunLicenseAnalytics::start($options + ['baseUrl' => $this->baseUrl, 'apiKey' => $this->token]);
     }
 
     /**
