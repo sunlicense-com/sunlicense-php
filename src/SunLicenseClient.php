@@ -22,6 +22,7 @@ final class SunLicenseClient
     private string $baseUrl;
     private ?string $token;
     private int $timeout;
+    private ?SunLicenseProtection $protection = null;
 
     /**
      * @param string      $baseUrl Base URL of your SunLicense instance.
@@ -56,6 +57,15 @@ final class SunLicenseClient
             throw new \InvalidArgumentException('SunLicense: licenseKey must not be empty');
         }
 
+        // With protection(): send its integrity result, then let it keep (valid + unlock) or forget (valid: false)
+        // the unlock. Outages change nothing.
+        $protection = $this->protection;
+        if ($protection !== null) {
+            $fp = $context['fingerprint'] ?? $context['hwid'] ?? $context['host'] ?? $protection->getFingerprint();
+            $protection->license($licenseKey, $fp === null ? null : (string) $fp);
+            $context += $protection->validateFields();
+        }
+
         $payload = json_encode(
             ['license' => $licenseKey] + $context,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
@@ -69,7 +79,21 @@ final class SunLicenseClient
             ? $this->sendWithCurl($url, $payload)
             : $this->sendWithStreams($url, $payload);
 
+        $protection?->accept($body);
+
         return new ValidationResult($status >= 200 && $status < 300, $status, $body);
+    }
+
+    /**
+     * Core unlock, tamper reports, the ownership notice and protected files, with this client's base URL and API key
+     * (see SunLicenseProtection). Every later validate() sends its integrity result and keeps or forgets the unlock.
+     *
+     * @param array<string, mixed> $options licenseKey, fingerprint, product, owner, terms, productCode, cacheDirectory
+     */
+    public function protection(array $options = []): SunLicenseProtection
+    {
+        $this->protection = new SunLicenseProtection($options + ['baseUrl' => $this->baseUrl, 'apiKey' => $this->token]);
+        return $this->protection;
     }
 
     /**

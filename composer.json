@@ -21,7 +21,9 @@
         "php": ">=8.0"
     },
     "suggest": {
-        "ext-curl": "Preferred HTTP transport; the client falls back to stream wrappers without it."
+        "ext-curl": "Preferred HTTP transport; the client falls back to stream wrappers without it.",
+        "ext-openssl": "AES-GCM for core unlock (SunLicenseProtection); ext-sodium works too on a CPU with AES.",
+        "ext-sodium": "Ed25519 for offline license files (SunLicenseProtection::acceptOffline)."
     },
     "autoload": {
         "psr-4": {

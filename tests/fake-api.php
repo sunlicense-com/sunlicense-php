@@ -20,6 +20,14 @@ if (($_SERVER['HTTP_AUTHORIZATION'] ?? '') !== 'Bearer good-token') {
     echo '{"status":401}';
     return;
 }
+// Protection (tests/protection.php): one key answers valid with an unlock, one is suspended.
+if (($body['license'] ?? null) === 'AX8P-QW3E-RT5Y-ZZ12') {
+    $vectors = json_decode(file_get_contents(__DIR__ . '/fixtures/protection-test-vectors.json'), true);
+    $suspended = file_exists(sys_get_temp_dir() . '/sunlicense-php-suspended');
+    http_response_code($suspended ? 403 : 200);
+    echo json_encode($suspended ? ['valid' => false, 'status' => 403, 'code' => 'SUSPENDED'] : $vectors['wire']['compatResponseV2']);
+    return;
+}
 $valid = ($body['license'] ?? null) === 'GOOD-KEY';
 http_response_code($valid ? 200 : 400);
 echo json_encode(['valid' => $valid, 'code' => $valid ? 'VALID' : 'NOT_FOUND']);
