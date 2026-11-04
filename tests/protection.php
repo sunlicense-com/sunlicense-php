@@ -211,7 +211,7 @@ $test('protected files: API key, license and machine headers; refusals say why',
     $p = $make(['productCode' => 'my plugin', 'apiKey' => 'sk_test', '_get' => $get]);
     $check($p->protectedFile('rules.dat') === 'RULES', 'body');
     $check($seen[0] === 'https://api.example.test/api/v2/protected-files/my%20plugin/rules.dat', $seen[0]);
-    $check($seen[1]['Authorization'] === 'Bearer sk_test' && $seen[1]['license'] === KEY && $seen[1]['fingerprint'] === 'machine-1', 'headers');
+    $check($seen[1]['Authorization'] === 'Bearer sk_test' && $seen[1]['X-License-Key'] === KEY && $seen[1]['X-Fingerprint'] === 'machine-1', 'headers');
     $answer = [403, '{"code":"SUSPENDED"}'];
     $e = $throws(RefusedException::class, fn () => $p->protectedFile('rules.dat'));
     $check($e->getStatus() === 403 && str_contains($e->getMessage(), 'SUSPENDED'), $e->getMessage());

@@ -393,12 +393,12 @@ final class SunLicenseProtection
             throw new RefusedException(401, 'No license key');
         }
         $url = $this->baseUrl . '/api/v2/protected-files/' . rawurlencode($this->productCode) . '/' . rawurlencode($name);
-        $headers = ['license' => $this->licenseKey, 'User-Agent' => 'sunlicense-php/' . SunLicenseClient::VERSION];
+        $headers = ['X-License-Key' => $this->licenseKey, 'User-Agent' => 'sunlicense-php/' . SunLicenseClient::VERSION];
         if ($this->apiKey !== null) {
             $headers['Authorization'] = 'Bearer ' . $this->apiKey;
         }
         if ($this->fingerprint !== null) {
-            $headers['fingerprint'] = $this->fingerprint;
+            $headers['X-Fingerprint'] = $this->fingerprint;
         }
         [$status, $body] = $this->get !== null ? ($this->get)($url, $headers) : $this->httpGet($url, $headers);
         if ($status === 200) {
