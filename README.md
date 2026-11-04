@@ -104,6 +104,40 @@ its own errors.
 
 Docs: https://docs.sunlicense.com/guide/sdks#built-in-analytics
 
+## Protection: core unlock, tamper reports, ownership notice
+
+`sunlicense seal <file> --product <code> [--digest <files>]` (the [CLI](https://docs.sunlicense.com/cli/)) encrypts
+part of your product, its *core*, on SunLicense's servers under a key only they hold, and prints the sealed text
+(`SLS1.…`) you ship. A valid license check answers with that key (`unlock`); a refused one (suspended, expired,
+revoked) doesn't, and this SDK forgets the one it had. So a copy whose license check was cut out can't run its core.
+The unlock from the last valid check is cached for 7 days (in `cacheDirectory`, default `~/.sunlicense` or the temp directory), encrypted under a key bound to the license key,
+the machine id and this machine, so outages don't stop your customers.
+
+```php
+$client = new SunLicenseClient('https://api.sunlicense.com', getenv('SUNLICENSE_API_KEY'));
+$protection = $client->protection(['licenseKey' => $key, 'fingerprint' => $machineId, 'product' => 'My Plugin',
+    'owner' => 'Example Studio', 'terms' => 'https://example.com/terms', 'cacheDirectory' => $dataDir]);
+error_log($protection->notice());                       // product, owner, masked key
+$client->validate($key, ['fingerprint' => $machineId]); // sends integrity, keeps or forgets the unlock
+$core = $protection->unseal(SEALED_CORE);               // throws LockedException without a valid unlock
+$protection->integrity(__DIR__);                        // 'OK' / 'MODIFIED', sent with the next check
+```
+
+- `unseal(sealed)`: the core, or throws `LockedException` without a valid unlock (or for data sealed for another product).
+- `integrity(...)`: compares the files whose digests were sealed with the core (`--digest`) with what is running;
+  `OK` or `MODIFIED` (with the changed files) is sent with the next check, where Sentinel sees it.
+- `notice()`: `My Bot is licensed software by Example Studio. License AX8P-XXXX-XXXX-XXXX. Terms: …`; never the full
+  key or the buyer's name.
+- `$protection->protectedFile($name)`: a file uploaded to the product (Standard plan), sent only while the license is valid.
+- `accept(body)` and `validateFields()`: for your own HTTP code; the client does both when you create the protection from it.
+- `acceptOffline($file, $publicKey)`: the unlock from a valid [offline license file](https://docs.sunlicense.com/guide/offline-licenses) (ext-sodium).
+- Needs ext-openssl for AES-GCM (or ext-sodium on a CPU with AES).
+
+Honest limit: someone with a valid license can still extract the unlock and patch their copy; that copy then fails
+its integrity check and is reported. Protection raises the cost and makes leaks visible. Wire format and test
+vectors: `tests/fixtures/protection-test-vectors.json` (a copy of SunLicense's); docs:
+https://docs.sunlicense.com/guide/protection
+
 ## Requirements
 
 **PHP 8.0 or newer.** `ext-curl` is suggested but not required.
@@ -120,6 +154,7 @@ Also available for **Java**, **.NET**, **JavaScript**, **Python** and **Lua**.
 
 ## Changelog
 
+- **0.2.0**: core unlock, tamper reports, the ownership notice and protected files: `$client->protection()`, `SunLicenseProtection`.
 - **0.1.0**: built-in product analytics (opt-out), feature usage and custom charts: `$client->analytics()`, `SunLicenseAnalytics::forProduct()`.
 - **0.0.2**: validates against `/api/v2/license/validate` (`{"license": key, ...context}`), like
   every other SunLicense client. **0.0.1 called `/api/v1/validate`, which answers HTTP 200 for every
@@ -132,6 +167,7 @@ Also available for **Java**, **.NET**, **JavaScript**, **Python** and **Lua**.
 ```bash
 php tests/run.php
 php tests/analytics.php
+php tests/protection.php
 ```
 
 ## Licence
