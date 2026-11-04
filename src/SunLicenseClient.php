@@ -17,7 +17,7 @@ namespace SunLicense;
 final class SunLicenseClient
 {
     /** The version of this client. */
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
 
     private string $baseUrl;
     private ?string $token;
